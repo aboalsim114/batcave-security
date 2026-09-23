@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
-const { existsSync, unlinkSync } = require('node:fs');
+const { existsSync, readFileSync, unlinkSync } = require('node:fs');
 const { once } = require('node:events');
 const test = require('node:test');
 const bcrypt = require('bcrypt');
@@ -32,6 +32,14 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
 
     const port = startupMessage.toString().match(/localhost:(\d+)/)?.[1];
     assert.ok(port, 'Le serveur doit annoncer son port d’écoute.');
+
+    const serverSource = readFileSync('server.js', 'utf8');
+    assert.doesNotMatch(serverSource, /app\.(get|post)\(/);
+    assert.match(serverSource, /require\('\.\/routes\/auth'\)/);
+    assert.match(serverSource, /require\('\.\/routes\/batcomputer'\)/);
+    assert.equal(existsSync('config/db.js'), true);
+    assert.equal(existsSync('middlewares/checkAuth.js'), true);
+    assert.equal(existsSync('views/bat-computer.html'), true);
 
     const response = await fetch(`http://localhost:${port}`);
     const body = await response.json();
