@@ -126,7 +126,15 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       headers: { Authorization: `Basic ${validAuth}` },
     });
     assert.equal(batComputerOk.status, 200);
-    assert.match(await batComputerOk.text(), /Bienvenue, Justicier|Chargement du profil/);
+    const batComputerPage = await batComputerOk.text();
+    assert.match(batComputerPage, /Bienvenue, Justicier|Chargement du profil/);
+    assert.match(batComputerPage, /id="arsenal"/);
+
+    const batComputerScript = await fetch(`http://localhost:${port}/bat-computer.js`);
+    const scriptText = await batComputerScript.text();
+    assert.equal(batComputerScript.status, 200);
+    assert.match(scriptText, /\/api\/secrets/);
+    assert.match(scriptText, /Authorization: getAuthHeader/);
 
     const meWithoutAuth = await fetch(`http://localhost:${port}/api/me`);
     assert.equal(meWithoutAuth.status, 401);
