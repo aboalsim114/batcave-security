@@ -3,184 +3,127 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const Database = require('better-sqlite3');
 
-const PORT = process.env.PORT === undefined ? 3001 : Number(process.env.PORT);
 const app = express();
-const database = new Database('database.db');
+const PORT = 3001;
 
-database.pragma('foreign_keys = ON');
-database.exec(`
+// Crée la base de données ou l'utilise si elle existe déjà
+const db = new Database('database.db');
+
+// Crée les tables si besoin
+db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL
   );
-
   CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     content TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
-  )
+  );
 `);
 
 app.use(express.json());
 app.use(express.static('public'));
 
-function refuseAccess(response) {
-  response.set('WWW-Authenticate', 'Basic realm="Batcave"');
-  return response.status(401).json({
-    message: 'Authentification requise.',
-  });
-}
-
-async function checkBasicAuth(request, response, next) {
-  const header = request.headers.authorization;
-
+// Fonction d'authentification basique
+async function auth(req, res, next) {
+  let header = req.headers.authorization;
   if (!header || !header.startsWith('Basic ')) {
-    return refuseAccess(response);
+    res.set('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ message: "Authentification requise." });
   }
+  let infos = Buffer.from(header.split(' ')[1], 'base64').toString().split(':');
+  let username = infos[0];
+  let password = infos[1];
 
-  const encoded = header.slice('Basic '.length);
-  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-  const separator = decoded.indexOf(':');
-
-  if (separator === -1) {
-    return refuseAccess(response);
-  }
-
-  const username = decoded.slice(0, separator);
-  const password = decoded.slice(separator + 1);
-  const user = database
-    .prepare('SELECT id, username, password FROM users WHERE username = ?')
-    .get(username);
-
+  let user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!user) {
-    return refuseAccess(response);
+    res.set('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ message: "Authentification requise." });
   }
-
-  const passwordOk = await bcrypt.compare(password, user.password);
-
-  if (!passwordOk) {
-    return refuseAccess(response);
+  let valid = await bcrypt.compare(password, user.password);
+  if (!valid) {
+    res.set('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ message: "Authentification requise." });
   }
-
-  request.user = {
-    id: user.id,
-    username: user.username,
-  };
-
+  req.user = user;
   next();
 }
 
-app.post('/register', async (request, response) => {
-  const { username, password } = request.body;
-
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return response.status(400).json({
-      message: 'Le nom d’utilisateur et le mot de passe sont obligatoires.',
-    });
+// Route d'inscription
+app.post('/register', async (req, res) => {
+  let { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: "Le nom d’utilisateur et le mot de passe sont obligatoires." });
   }
-
-  const cleanUsername = username.trim();
-
-  if (!cleanUsername || cleanUsername.includes(' ')) {
-    return response.status(400).json({
-      message: 'Le nom d’utilisateur ne doit pas contenir d’espace.',
-    });
+  username = username.trim();
+  if (username === '' || username.includes(' ')) {
+    return res.status(400).json({ message: "Le nom d’utilisateur ne doit pas contenir d’espace." });
   }
-
   if (password.length < 8) {
-    return response.status(400).json({
-      message: 'Le mot de passe doit contenir au moins 8 caractères.',
-    });
+    return res.status(400).json({ message: "Le mot de passe doit contenir au moins 8 caractères." });
   }
-
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = database
-      .prepare('INSERT INTO users (username, password) VALUES (?, ?)')
-      .run(cleanUsername, hashedPassword);
-
-    return response.status(201).json({
-      message: 'Inscription réussie.',
-      user: {
-        id: result.lastInsertRowid,
-        username: cleanUsername,
-      },
+    const hash = await bcrypt.hash(password, 10);
+    let stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
+    let info = stmt.run(username, hash);
+    res.status(201).json({
+      message: "Inscription réussie.",
+      user: { id: info.lastInsertRowid, username }
     });
-  } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return response.status(409).json({
-        message: 'Ce nom d’utilisateur est déjà utilisé.',
-      });
+  } catch (e) {
+    if (e.code && e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      res.status(409).json({ message: "Ce nom d’utilisateur est déjà utilisé." });
+    } else {
+      res.status(500).json({ message: "Erreur lors de l'inscription." });
     }
-
-    console.error(error);
-    return response.status(500).json({
-      message: 'Une erreur est survenue pendant l’inscription.',
-    });
   }
 });
 
-app.get('/', (_request, response) => {
-  response.json({ message: 'Le système de sécurité de la Batcave est opérationnel.' });
+// Accueil
+app.get('/', (req, res) => {
+  res.json({ message: 'Le système de sécurité de la Batcave est opérationnel.' });
 });
 
-app.get('/bat-computer', checkBasicAuth, (_request, response) => {
-  response.sendFile(path.join(__dirname, 'private', 'bat-computer.html'));
+// Affiche la page privée
+app.get('/bat-computer', auth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'private', 'bat-computer.html'));
 });
 
-app.get('/api/secrets', checkBasicAuth, (_request, response) => {
-  response.json([
+// Lister les armes
+app.get('/api/secrets', auth, (req, res) => {
+  res.json([
     { name: 'Batarang', desc: 'Arme de jet', icon: 'fa-shuriken' },
     { name: 'Grapple Gun', desc: 'Grappin de grimpe', icon: 'fa-anchor' },
-    { name: 'Batmobile', desc: 'Véhicule de poursuite', icon: 'fa-car' },
+    { name: 'Batmobile', desc: 'Véhicule de poursuite', icon: 'fa-car' }
   ]);
 });
 
-app.get('/api/me', checkBasicAuth, (request, response) => {
-  response.json({
-    id: request.user.id,
-    username: request.user.username,
-  });
+// Retourne l'utilisateur connecté
+app.get('/api/me', auth, (req, res) => {
+  res.json({ id: req.user.id, username: req.user.username });
 });
 
-app.post('/api/reports', checkBasicAuth, (request, response) => {
-  const { content } = request.body;
-
-  if (typeof content !== 'string' || !content.trim()) {
-    return response.status(400).json({
-      message: 'Le rapport de mission est obligatoire.',
-    });
+// Enregistrer un rapport
+app.post('/api/reports', auth, (req, res) => {
+  let { content } = req.body;
+  if (!content || content.trim() === "") {
+    return res.status(400).json({ message: "Le rapport de mission est obligatoire." });
   }
-
-  const result = database
-    .prepare('INSERT INTO reports (user_id, content) VALUES (?, ?)')
-    .run(request.user.id, content.trim());
-
-  return response.status(201).json({
-    message: 'Rapport enregistré.',
+  let info = db.prepare('INSERT INTO reports (user_id, content) VALUES (?, ?)').run(req.user.id, content.trim());
+  res.status(201).json({
+    message: "Rapport enregistré.",
     report: {
-      id: result.lastInsertRowid,
-      userId: request.user.id,
-      content: content.trim(),
-    },
+      id: info.lastInsertRowid,
+      userId: req.user.id,
+      content: content.trim()
+    }
   });
 });
 
-const server = app.listen(PORT, () => {
-  const address = server.address();
-  const activePort = typeof address === 'object' ? address.port : PORT;
-
-  console.log(`Serveur de la Batcave démarré sur http://localhost:${activePort}`);
+// Lance le serveur
+app.listen(PORT, () => {
+  console.log('Serveur en ligne sur http://localhost:' + PORT);
 });
-
-function shutdown() {
-  server.close(() => {
-    database.close();
-    process.exit(0);
-  });
-}
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
