@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription à la Batcave</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+  </head>
+  <body class="bg-dark text-light">
+    <main class="container py-5">
+      <div class="card mx-auto shadow" style="max-width: 500px">
+        <div class="card-body p-4">
+          <h1 class="card-title h3 text-center mb-4">Registre des justiciers</h1>
+
+          <form id="register-form">
+            <div class="mb-3">
+              <label for="username" class="form-label">Nom d’utilisateur</label>
+              <input
+                id="username"
+                name="username"
+                class="form-control"
+                type="text"
+                required
+              >
+            </div>
+
+            <div class="mb-3">
+              <label for="password" class="form-label">Mot de passe</label>
+              <input
+                id="password"
+                name="password"
+                class="form-control"
+                type="password"
+                minlength="8"
+                required
+              >
+              <div class="form-text">8 caractères minimum.</div>
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit">
+              S’inscrire
+            </button>
+          </form>
+
+          <div id="message" class="alert mt-3 d-none" role="alert"></div>
+        </div>
+      </div>
+    </main>
+
+    <script src="register.js"></script>
+  </body>
+</html>
