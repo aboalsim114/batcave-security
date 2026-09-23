@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const Database = require('better-sqlite3');
 
-const PORT = process.env.PORT === undefined ? 3000 : Number(process.env.PORT);
+const PORT = process.env.PORT === undefined ? 3001 : Number(process.env.PORT);
 const app = express();
 const database = new Database('database.db');
 
