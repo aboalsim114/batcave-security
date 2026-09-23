@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
 
@@ -6,6 +7,47 @@ const router = express.Router();
 
 router.get('/', (req, res) => {
   res.json({ message: 'Le système de sécurité de la Batcave est opérationnel.' });
+});
+
+router.get('/auth/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'views', 'login.html'));
+});
+
+router.post('/auth/login', async (req, res) => {
+  let { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.redirect('/auth/login?erreur=1');
+  }
+
+  username = username.trim();
+
+  const user = db
+    .prepare('SELECT * FROM users WHERE username = ?')
+    .get(username);
+
+  if (!user) {
+    return res.redirect('/auth/login?erreur=1');
+  }
+
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) {
+    return res.redirect('/auth/login?erreur=1');
+  }
+
+  // Nouveau badge : évite qu'un pirate réutilise un ancien ID de session
+  req.session.regenerate((err) => {
+    if (err) {
+      return res.status(500).send('Erreur de session.');
+    }
+
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+    };
+
+    res.redirect('/bat-computer');
+  });
 });
 
 router.post('/register', async (req, res) => {
