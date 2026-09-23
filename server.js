@@ -13,6 +13,13 @@ database.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   )
 `);
 
@@ -129,6 +136,36 @@ app.get('/api/secrets', checkBasicAuth, (_request, response) => {
     { name: 'Grapple Gun', desc: 'Grappin de grimpe', icon: 'fa-anchor' },
     { name: 'Batmobile', desc: 'Véhicule de poursuite', icon: 'fa-car' },
   ]);
+});
+
+app.get('/api/me', checkBasicAuth, (request, response) => {
+  response.json({
+    id: request.user.id,
+    username: request.user.username,
+  });
+});
+
+app.post('/api/reports', checkBasicAuth, (request, response) => {
+  const { content } = request.body;
+
+  if (typeof content !== 'string' || !content.trim()) {
+    return response.status(400).json({
+      message: 'Le rapport de mission est obligatoire.',
+    });
+  }
+
+  const result = database
+    .prepare('INSERT INTO reports (user_id, content) VALUES (?, ?)')
+    .run(request.user.id, content.trim());
+
+  return response.status(201).json({
+    message: 'Rapport enregistré.',
+    report: {
+      id: result.lastInsertRowid,
+      userId: request.user.id,
+      content: content.trim(),
+    },
+  });
 });
 
 const server = app.listen(PORT, () => {
