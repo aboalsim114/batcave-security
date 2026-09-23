@@ -45,10 +45,13 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     assert.match(serverSource, /httpOnly:\s*true/);
     assert.match(serverSource, /sameSite:\s*['"]strict['"]/);
     assert.match(serverSource, /maxAge:\s*1800000/);
+    assert.match(serverSource, /urlencoded/);
     assert.match(readFileSync('.gitignore', 'utf8'), /\.env/);
+    assert.match(readFileSync('routes/auth.js', 'utf8'), /session\.regenerate/);
     assert.equal(existsSync('config/db.js'), true);
     assert.equal(existsSync('middlewares/checkAuth.js'), true);
     assert.equal(existsSync('views/bat-computer.html'), true);
+    assert.equal(existsSync('views/login.html'), true);
 
     const response = await fetch(`http://localhost:${port}`);
     const body = await response.json();
@@ -108,6 +111,48 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       }),
     });
     assert.equal(usernameWithSpace.status, 400);
+
+    const loginPage = await fetch(`http://localhost:${port}/auth/login`);
+    assert.equal(loginPage.status, 200);
+    const loginHtml = await loginPage.text();
+    assert.match(loginHtml, /name="username"/);
+    assert.match(loginHtml, /name="password"/);
+    assert.match(loginHtml, /action="\/auth\/login"/);
+
+    const badLogin = await fetch(`http://localhost:${port}/auth/login`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'username=batman&password=mauvaispass',
+    });
+    assert.equal(badLogin.status, 302);
+    assert.match(badLogin.headers.get('location') || '', /\/auth\/login/);
+    assert.equal((badLogin.headers.get('set-cookie') || '').includes('bat_identity'), false);
+
+    const goodLogin = await fetch(`http://localhost:${port}/auth/login`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'username=batman&password=batmobile',
+    });
+    const cookie1 = goodLogin.headers.get('set-cookie') || '';
+    assert.equal(goodLogin.status, 302);
+    assert.match(goodLogin.headers.get('location') || '', /\/bat-computer/);
+    assert.match(cookie1, /bat_identity/);
+
+    const secondLogin = await fetch(`http://localhost:${port}/auth/login`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: cookie1.split(';')[0],
+      },
+      body: 'username=batman&password=batmobile',
+    });
+    const cookie2 = secondLogin.headers.get('set-cookie') || '';
+    assert.equal(secondLogin.status, 302);
+    assert.match(cookie2, /bat_identity/);
+    assert.notEqual(cookie1, cookie2);
 
     const duplicate = await fetch(`http://localhost:${port}/register`, {
       method: 'POST',

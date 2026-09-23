@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion à la Batcave</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+  </head>
+  <body class="bg-dark text-light">
+    <main class="container py-5">
+      <div class="card mx-auto shadow" style="max-width: 500px">
+        <div class="card-body p-4">
+          <h1 class="card-title h3 text-center mb-4">Connexion des justiciers</h1>
+
+          <p id="erreur" class="alert alert-danger d-none">
+            Identifiants incorrects.
+          </p>
+
+          <form action="/auth/login" method="POST">
+            <div class="mb-3">
+              <label for="username" class="form-label">Nom d’utilisateur</label>
+              <input
+                id="username"
+                name="username"
+                class="form-control"
+                type="text"
+                required
+              >
+            </div>
+
+            <div class="mb-3">
+              <label for="password" class="form-label">Mot de passe</label>
+              <input
+                id="password"
+                name="password"
+                class="form-control"
+                type="password"
+                required
+              >
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit">
+              Se connecter
+            </button>
+          </form>
+
+          <p class="text-center mt-3 mb-0">
+            <a href="/register.html" class="link-light">Pas encore inscrit ?</a>
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      if (new URLSearchParams(location.search).get('erreur')) {
+        document.getElementById('erreur').classList.remove('d-none');
+      }
+    </script>
+  </body>
+</html>
