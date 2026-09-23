@@ -12,7 +12,31 @@
   <body class="bg-dark text-light">
     <main class="container py-5">
       <h1 class="h3">Bat-Ordinateur</h1>
-      <p>Accès autorisé au système de sécurité de la Batcave.</p>
+      <p id="welcome">Chargement du profil...</p>
+
+      <section class="card text-dark mt-4" style="max-width: 600px">
+        <div class="card-body">
+          <h2 class="h5">Note de mission</h2>
+          <form id="report-form">
+            <div class="mb-3">
+              <label for="content" class="form-label">Rapport</label>
+              <textarea
+                id="content"
+                name="content"
+                class="form-control"
+                rows="4"
+                required
+              ></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">
+              Enregistrer le rapport
+            </button>
+          </form>
+          <div id="report-message" class="alert mt-3 d-none" role="alert"></div>
+        </div>
+      </section>
     </main>
+
+    <script src="/bat-computer.js"></script>
   </body>
 </html>

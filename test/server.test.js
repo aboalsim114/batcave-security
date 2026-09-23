@@ -126,7 +126,58 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       headers: { Authorization: `Basic ${validAuth}` },
     });
     assert.equal(batComputerOk.status, 200);
-    assert.match(await batComputerOk.text(), /Bat-Ordinateur/);
+    assert.match(await batComputerOk.text(), /Bienvenue, Justicier|Chargement du profil/);
+
+    const meWithoutAuth = await fetch(`http://localhost:${port}/api/me`);
+    assert.equal(meWithoutAuth.status, 401);
+
+    const meOk = await fetch(`http://localhost:${port}/api/me`, {
+      headers: { Authorization: `Basic ${validAuth}` },
+    });
+    const meBody = await meOk.json();
+    assert.equal(meOk.status, 200);
+    assert.equal(meBody.username, 'batman');
+    assert.ok(meBody.id);
+
+    const emptyReport = await fetch(`http://localhost:${port}/api/reports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${validAuth}`,
+      },
+      body: JSON.stringify({ content: '   ' }),
+    });
+    assert.equal(emptyReport.status, 400);
+
+    const reportOk = await fetch(`http://localhost:${port}/api/reports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${validAuth}`,
+      },
+      body: JSON.stringify({ content: 'Mission accomplie à Gotham.' }),
+    });
+    const reportBody = await reportOk.json();
+    assert.equal(reportOk.status, 201);
+    assert.equal(reportBody.report.content, 'Mission accomplie à Gotham.');
+
+    const reportsDb = new Database(databasePath, { readonly: true });
+    const reportColumns = reportsDb.prepare('PRAGMA table_info(reports)').all();
+    const savedReport = reportsDb
+      .prepare('SELECT user_id, content FROM reports WHERE id = ?')
+      .get(reportBody.report.id);
+    reportsDb.close();
+
+    assert.deepEqual(
+      reportColumns.map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk })),
+      [
+        { name: 'id', type: 'INTEGER', notnull: 0, pk: 1 },
+        { name: 'user_id', type: 'INTEGER', notnull: 1, pk: 0 },
+        { name: 'content', type: 'TEXT', notnull: 1, pk: 0 },
+      ],
+    );
+    assert.equal(savedReport.user_id, meBody.id);
+    assert.equal(savedReport.content, 'Mission accomplie à Gotham.');
   } finally {
     if (server.exitCode === null) {
       const serverClosed = once(server, 'close');
