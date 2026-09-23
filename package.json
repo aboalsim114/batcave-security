@@ -1,0 +1,19 @@
+{
+  "name": "batcave-security",
+  "version": "1.0.0",
+  "description": "Serveur d'authentification sécurisé de la Batcave",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^11.10.0",
+    "express": "^5.2.1"
+  }
+}
