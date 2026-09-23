@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const bcrypt = require('bcrypt');
 const Database = require('better-sqlite3');
 
@@ -17,6 +18,52 @@ database.exec(`
 
 app.use(express.json());
 app.use(express.static('public'));
+
+function refuseAccess(response) {
+  response.set('WWW-Authenticate', 'Basic realm="Batcave"');
+  return response.status(401).json({
+    message: 'Authentification requise.',
+  });
+}
+
+async function checkBasicAuth(request, response, next) {
+  const header = request.headers.authorization;
+
+  if (!header || !header.startsWith('Basic ')) {
+    return refuseAccess(response);
+  }
+
+  const encoded = header.slice('Basic '.length);
+  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+  const separator = decoded.indexOf(':');
+
+  if (separator === -1) {
+    return refuseAccess(response);
+  }
+
+  const username = decoded.slice(0, separator);
+  const password = decoded.slice(separator + 1);
+  const user = database
+    .prepare('SELECT id, username, password FROM users WHERE username = ?')
+    .get(username);
+
+  if (!user) {
+    return refuseAccess(response);
+  }
+
+  const passwordOk = await bcrypt.compare(password, user.password);
+
+  if (!passwordOk) {
+    return refuseAccess(response);
+  }
+
+  request.user = {
+    id: user.id,
+    username: user.username,
+  };
+
+  next();
+}
 
 app.post('/register', async (request, response) => {
   const { username, password } = request.body;
@@ -70,6 +117,18 @@ app.post('/register', async (request, response) => {
 
 app.get('/', (_request, response) => {
   response.json({ message: 'Le système de sécurité de la Batcave est opérationnel.' });
+});
+
+app.get('/bat-computer', checkBasicAuth, (_request, response) => {
+  response.sendFile(path.join(__dirname, 'private', 'bat-computer.html'));
+});
+
+app.get('/api/secrets', checkBasicAuth, (_request, response) => {
+  response.json([
+    { name: 'Batarang', desc: 'Arme de jet', icon: 'fa-shuriken' },
+    { name: 'Grapple Gun', desc: 'Grappin de grimpe', icon: 'fa-anchor' },
+    { name: 'Batmobile', desc: 'Véhicule de poursuite', icon: 'fa-car' },
+  ]);
 });
 
 const server = app.listen(PORT, () => {
