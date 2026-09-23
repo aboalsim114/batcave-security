@@ -134,7 +134,7 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     const scriptText = await batComputerScript.text();
     assert.equal(batComputerScript.status, 200);
     assert.match(scriptText, /\/api\/secrets/);
-    assert.match(scriptText, /headers\.set\('Authorization'/);
+    assert.match(scriptText, /Authorization: getAuthHeader/);
 
     const meWithoutAuth = await fetch(`http://localhost:${port}/api/me`);
     assert.equal(meWithoutAuth.status, 401);

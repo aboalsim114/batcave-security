@@ -67,10 +67,11 @@ reportForm.addEventListener('submit', async (event) => {
 
 async function showArsenal() {
   try {
-    const headers = new Headers();
-    headers.set('Authorization', getAuthHeader());
-
-    const response = await fetch('/api/secrets', { headers });
+    const response = await fetch('/api/secrets', {
+      headers: {
+        Authorization: getAuthHeader(),
+      },
+    });
     const gadgets = await response.json();
 
     if (!response.ok) {
@@ -81,10 +82,10 @@ async function showArsenal() {
     arsenal.innerHTML = '';
 
     gadgets.forEach((gadget) => {
-      const column = document.createElement('div');
-      column.className = 'col-12 col-md-4';
-      column.innerHTML = `
-        <article class="card h-100 text-dark">
+      const col = document.createElement('div');
+      col.className = 'col-12 col-md-4';
+      col.innerHTML = `
+        <div class="card h-100 text-dark">
           <div class="card-body">
             <h3 class="h5">
               <i class="fa-solid ${gadget.icon}"></i>
@@ -92,18 +93,13 @@ async function showArsenal() {
             </h3>
             <p class="mb-0">${gadget.desc}</p>
           </div>
-        </article>
+        </div>
       `;
-      arsenal.appendChild(column);
+      arsenal.appendChild(col);
     });
   } catch {
     arsenal.innerHTML = '<p>Le serveur est momentanément indisponible.</p>';
   }
 }
 
-async function startPage() {
-  await showWelcome();
-  await showArsenal();
-}
-
-startPage();
+showWelcome().then(showArsenal);
