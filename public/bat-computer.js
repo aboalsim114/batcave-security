@@ -1,4 +1,5 @@
 const welcome = document.querySelector('#welcome');
+const arsenal = document.querySelector('#arsenal');
 const reportForm = document.querySelector('#report-form');
 const reportMessage = document.querySelector('#report-message');
 
@@ -64,4 +65,45 @@ reportForm.addEventListener('submit', async (event) => {
   }
 });
 
-showWelcome();
+async function showArsenal() {
+  try {
+    const headers = new Headers();
+    headers.set('Authorization', getAuthHeader());
+
+    const response = await fetch('/api/secrets', { headers });
+    const gadgets = await response.json();
+
+    if (!response.ok) {
+      arsenal.innerHTML = '<p>Impossible de charger l’arsenal.</p>';
+      return;
+    }
+
+    arsenal.innerHTML = '';
+
+    gadgets.forEach((gadget) => {
+      const column = document.createElement('div');
+      column.className = 'col-12 col-md-4';
+      column.innerHTML = `
+        <article class="card h-100 text-dark">
+          <div class="card-body">
+            <h3 class="h5">
+              <i class="fa-solid ${gadget.icon}"></i>
+              ${gadget.name}
+            </h3>
+            <p class="mb-0">${gadget.desc}</p>
+          </div>
+        </article>
+      `;
+      arsenal.appendChild(column);
+    });
+  } catch {
+    arsenal.innerHTML = '<p>Le serveur est momentanément indisponible.</p>';
+  }
+}
+
+async function startPage() {
+  await showWelcome();
+  await showArsenal();
+}
+
+startPage();
