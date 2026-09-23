@@ -98,6 +98,35 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       body: JSON.stringify({ username: 'batman', password: 'autrepass' }),
     });
     assert.equal(duplicate.status, 409);
+
+    const secretWithoutAuth = await fetch(`http://localhost:${port}/api/secrets`);
+    assert.equal(secretWithoutAuth.status, 401);
+    assert.match(secretWithoutAuth.headers.get('www-authenticate') || '', /Basic/i);
+
+    const batComputerWithoutAuth = await fetch(`http://localhost:${port}/bat-computer`);
+    assert.equal(batComputerWithoutAuth.status, 401);
+
+    const wrongPassword = Buffer.from('batman:mauvaispass').toString('base64');
+    const secretWrongAuth = await fetch(`http://localhost:${port}/api/secrets`, {
+      headers: { Authorization: `Basic ${wrongPassword}` },
+    });
+    assert.equal(secretWrongAuth.status, 401);
+
+    const validAuth = Buffer.from('batman:batmobile').toString('base64');
+    const secretOk = await fetch(`http://localhost:${port}/api/secrets`, {
+      headers: { Authorization: `Basic ${validAuth}` },
+    });
+    const secrets = await secretOk.json();
+
+    assert.equal(secretOk.status, 200);
+    assert.equal(Array.isArray(secrets), true);
+    assert.equal(secrets[0].name, 'Batarang');
+
+    const batComputerOk = await fetch(`http://localhost:${port}/bat-computer`, {
+      headers: { Authorization: `Basic ${validAuth}` },
+    });
+    assert.equal(batComputerOk.status, 200);
+    assert.match(await batComputerOk.text(), /Bat-Ordinateur/);
   } finally {
     if (server.exitCode === null) {
       const serverClosed = once(server, 'close');
