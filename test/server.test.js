@@ -14,7 +14,7 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
   }
 
   const server = spawn(process.execPath, ['server.js'], {
-    env: { ...process.env, PORT: '0' },
+    env: { ...process.env, PORT: '3456', SESSION_SECRET: 'test_secret_session' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -37,6 +37,15 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     assert.doesNotMatch(serverSource, /app\.(get|post)\(/);
     assert.match(serverSource, /require\('\.\/routes\/auth'\)/);
     assert.match(serverSource, /require\('\.\/routes\/batcomputer'\)/);
+    assert.match(serverSource, /require\('dotenv'\)/);
+    assert.match(serverSource, /require\('express-session'\)/);
+    assert.match(serverSource, /process\.env\.PORT/);
+    assert.match(serverSource, /process\.env\.SESSION_SECRET/);
+    assert.match(serverSource, /bat_identity/);
+    assert.match(serverSource, /httpOnly:\s*true/);
+    assert.match(serverSource, /sameSite:\s*['"]strict['"]/);
+    assert.match(serverSource, /maxAge:\s*1800000/);
+    assert.match(readFileSync('.gitignore', 'utf8'), /\.env/);
     assert.equal(existsSync('config/db.js'), true);
     assert.equal(existsSync('middlewares/checkAuth.js'), true);
     assert.equal(existsSync('views/bat-computer.html'), true);
