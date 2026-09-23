@@ -1,0 +1,15 @@
+---
+description: Maintenir un code simple et explicable au niveau Mastère 1
+alwaysApply: true
+---
+
+# Niveau de code attendu
+
+- Écrire du code simple, clair et compréhensible par un étudiant en 4ᵉ année de Mastère.
+- Utiliser des noms de variables et de fonctions courts, précis et faciles à expliquer.
+- Choisir la solution directe la plus simple qui répond correctement au besoin.
+- Structurer le code proprement sans architecture avancée ni abstraction inutile.
+- Éviter la sur-ingénierie, les optimisations prématurées et les techniques inhabituelles pour un TP.
+- Respecter les bonnes pratiques de base de JavaScript, Node.js, Express et SQLite.
+- Ajouter uniquement les commentaires qui aident réellement à comprendre le code.
+- Faire en sorte que chaque partie puisse être comprise, expliquée et modifiée par l’étudiant.
