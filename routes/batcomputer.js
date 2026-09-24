@@ -1,15 +1,26 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
-const checkAuth = require('../middlewares/checkAuth');
+const isAuthenticated = require('../middlewares/authCheck');
 const db = require('../config/db');
 
 const router = express.Router();
 
-router.get('/bat-computer', checkAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'bat-computer.html'));
+router.get('/bat-computer', isAuthenticated, (req, res) => {
+  let html = fs.readFileSync(
+    path.join(__dirname, '..', 'views', 'bat-computer.html'),
+    'utf8'
+  );
+
+  html = html.replace(
+    'Chargement du profil...',
+    'Bienvenue, ' + req.session.user.username
+  );
+
+  res.send(html);
 });
 
-router.get('/api/secrets', checkAuth, (req, res) => {
+router.get('/api/secrets', isAuthenticated, (req, res) => {
   res.json([
     { name: 'Batarang', desc: 'Arme de jet', icon: 'fa-shuriken' },
     { name: 'Grapple Gun', desc: 'Grappin de grimpe', icon: 'fa-anchor' },
@@ -17,11 +28,14 @@ router.get('/api/secrets', checkAuth, (req, res) => {
   ]);
 });
 
-router.get('/api/me', checkAuth, (req, res) => {
-  res.json({ id: req.user.id, username: req.user.username });
+router.get('/api/me', isAuthenticated, (req, res) => {
+  res.json({
+    id: req.session.user.id,
+    username: req.session.user.username,
+  });
 });
 
-router.post('/api/reports', checkAuth, (req, res) => {
+router.post('/api/reports', isAuthenticated, (req, res) => {
   const { content } = req.body;
 
   if (!content || content.trim() === '') {
@@ -32,13 +46,13 @@ router.post('/api/reports', checkAuth, (req, res) => {
 
   const info = db
     .prepare('INSERT INTO reports (user_id, content) VALUES (?, ?)')
-    .run(req.user.id, content.trim());
+    .run(req.session.user.id, content.trim());
 
   res.status(201).json({
     message: 'Rapport enregistré.',
     report: {
       id: info.lastInsertRowid,
-      userId: req.user.id,
+      userId: req.session.user.id,
       content: content.trim(),
     },
   });

@@ -50,6 +50,8 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     assert.match(readFileSync('routes/auth.js', 'utf8'), /session\.regenerate/);
     assert.equal(existsSync('config/db.js'), true);
     assert.equal(existsSync('middlewares/checkAuth.js'), true);
+    assert.equal(existsSync('middlewares/authCheck.js'), true);
+    assert.match(readFileSync('middlewares/authCheck.js', 'utf8'), /isAuthenticated/);
     assert.equal(existsSync('views/bat-computer.html'), true);
     assert.equal(existsSync('views/login.html'), true);
 
@@ -161,22 +163,19 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     });
     assert.equal(duplicate.status, 409);
 
+    const sessionCookie = cookie2.split(';')[0];
+
     const secretWithoutAuth = await fetch(`http://localhost:${port}/api/secrets`);
     assert.equal(secretWithoutAuth.status, 401);
-    assert.match(secretWithoutAuth.headers.get('www-authenticate') || '', /Basic/i);
 
-    const batComputerWithoutAuth = await fetch(`http://localhost:${port}/bat-computer`);
-    assert.equal(batComputerWithoutAuth.status, 401);
-
-    const wrongPassword = Buffer.from('batman:mauvaispass').toString('base64');
-    const secretWrongAuth = await fetch(`http://localhost:${port}/api/secrets`, {
-      headers: { Authorization: `Basic ${wrongPassword}` },
+    const batComputerWithoutAuth = await fetch(`http://localhost:${port}/bat-computer`, {
+      redirect: 'manual',
     });
-    assert.equal(secretWrongAuth.status, 401);
+    assert.equal(batComputerWithoutAuth.status, 302);
+    assert.match(batComputerWithoutAuth.headers.get('location') || '', /\/auth\/login/);
 
-    const validAuth = Buffer.from('batman:batmobile').toString('base64');
     const secretOk = await fetch(`http://localhost:${port}/api/secrets`, {
-      headers: { Authorization: `Basic ${validAuth}` },
+      headers: { Cookie: sessionCookie },
     });
     const secrets = await secretOk.json();
 
@@ -185,24 +184,24 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     assert.equal(secrets[0].name, 'Batarang');
 
     const batComputerOk = await fetch(`http://localhost:${port}/bat-computer`, {
-      headers: { Authorization: `Basic ${validAuth}` },
+      headers: { Cookie: sessionCookie },
     });
     assert.equal(batComputerOk.status, 200);
     const batComputerPage = await batComputerOk.text();
-    assert.match(batComputerPage, /Bienvenue, Justicier|Chargement du profil/);
+    assert.match(batComputerPage, /Bienvenue, batman/);
     assert.match(batComputerPage, /id="arsenal"/);
 
     const batComputerScript = await fetch(`http://localhost:${port}/bat-computer.js`);
     const scriptText = await batComputerScript.text();
     assert.equal(batComputerScript.status, 200);
     assert.match(scriptText, /\/api\/secrets/);
-    assert.match(scriptText, /Authorization: getAuthHeader/);
+    assert.doesNotMatch(scriptText, /getAuthHeader|Authorization/);
 
     const meWithoutAuth = await fetch(`http://localhost:${port}/api/me`);
     assert.equal(meWithoutAuth.status, 401);
 
     const meOk = await fetch(`http://localhost:${port}/api/me`, {
-      headers: { Authorization: `Basic ${validAuth}` },
+      headers: { Cookie: sessionCookie },
     });
     const meBody = await meOk.json();
     assert.equal(meOk.status, 200);
@@ -213,7 +212,7 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${validAuth}`,
+        Cookie: sessionCookie,
       },
       body: JSON.stringify({ content: '   ' }),
     });
@@ -223,7 +222,7 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${validAuth}`,
+        Cookie: sessionCookie,
       },
       body: JSON.stringify({ content: 'Mission accomplie à Gotham.' }),
     });
