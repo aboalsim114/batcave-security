@@ -1,41 +1,6 @@
-const welcome = document.querySelector('#welcome');
 const arsenal = document.querySelector('#arsenal');
 const reportForm = document.querySelector('#report-form');
 const reportMessage = document.querySelector('#report-message');
-
-function getAuthHeader() {
-  let username = sessionStorage.getItem('username');
-  let password = sessionStorage.getItem('password');
-
-  if (!username || !password) {
-    username = prompt('Nom d’utilisateur') || '';
-    password = prompt('Mot de passe') || '';
-    sessionStorage.setItem('username', username);
-    sessionStorage.setItem('password', password);
-  }
-
-  return 'Basic ' + btoa(username + ':' + password);
-}
-
-async function showWelcome() {
-  try {
-    const response = await fetch('/api/me', {
-      headers: {
-        Authorization: getAuthHeader(),
-      },
-    });
-    const result = await response.json();
-
-    if (!response.ok) {
-      welcome.textContent = result.message || 'Profil introuvable.';
-      return;
-    }
-
-    welcome.textContent = 'Bienvenue, Justicier ' + result.username;
-  } catch {
-    welcome.textContent = 'Le serveur est momentanément indisponible.';
-  }
-}
 
 reportForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -45,10 +10,7 @@ reportForm.addEventListener('submit', async (event) => {
   try {
     const response = await fetch('/api/reports', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: getAuthHeader(),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
     const result = await response.json();
@@ -67,11 +29,7 @@ reportForm.addEventListener('submit', async (event) => {
 
 async function showArsenal() {
   try {
-    const response = await fetch('/api/secrets', {
-      headers: {
-        Authorization: getAuthHeader(),
-      },
-    });
+    const response = await fetch('/api/secrets');
     const gadgets = await response.json();
 
     if (!response.ok) {
@@ -102,4 +60,4 @@ async function showArsenal() {
   }
 }
 
-showWelcome().then(showArsenal);
+showArsenal();
