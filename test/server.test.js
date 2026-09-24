@@ -48,6 +48,8 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     assert.match(serverSource, /urlencoded/);
     assert.match(readFileSync('.gitignore', 'utf8'), /\.env/);
     assert.match(readFileSync('routes/auth.js', 'utf8'), /session\.regenerate/);
+    assert.match(readFileSync('routes/auth.js', 'utf8'), /session\.destroy/);
+    assert.match(readFileSync('routes/auth.js', 'utf8'), /clearCookie\('bat_identity'\)/);
     assert.equal(existsSync('config/db.js'), true);
     assert.equal(existsSync('middlewares/checkAuth.js'), true);
     assert.equal(existsSync('middlewares/authCheck.js'), true);
@@ -190,6 +192,7 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     const batComputerPage = await batComputerOk.text();
     assert.match(batComputerPage, /Bienvenue, batman/);
     assert.match(batComputerPage, /id="arsenal"/);
+    assert.match(batComputerPage, /href="\/auth\/logout"/);
 
     const batComputerScript = await fetch(`http://localhost:${port}/bat-computer.js`);
     const scriptText = await batComputerScript.text();
@@ -247,6 +250,28 @@ test('initialise le serveur et inscrit un utilisateur', async () => {
     );
     assert.equal(savedReport.user_id, meBody.id);
     assert.equal(savedReport.content, 'Mission accomplie à Gotham.');
+
+    const logout = await fetch(`http://localhost:${port}/auth/logout`, {
+      redirect: 'manual',
+      headers: { Cookie: sessionCookie },
+    });
+    const logoutCookie = logout.headers.get('set-cookie') || '';
+    assert.equal(logout.status, 302);
+    assert.match(logout.headers.get('location') || '', /\/auth\/login/);
+    assert.match(logoutCookie, /bat_identity/);
+    assert.match(logoutCookie, /Max-Age=0|Expires=/);
+
+    const batComputerAfterLogout = await fetch(`http://localhost:${port}/bat-computer`, {
+      redirect: 'manual',
+      headers: { Cookie: sessionCookie },
+    });
+    assert.equal(batComputerAfterLogout.status, 302);
+    assert.match(batComputerAfterLogout.headers.get('location') || '', /\/auth\/login/);
+
+    const secretAfterLogout = await fetch(`http://localhost:${port}/api/secrets`, {
+      headers: { Cookie: sessionCookie },
+    });
+    assert.equal(secretAfterLogout.status, 401);
   } finally {
     if (server.exitCode === null) {
       const serverClosed = once(server, 'close');
