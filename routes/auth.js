@@ -50,6 +50,17 @@ router.post('/auth/login', async (req, res) => {
   });
 });
 
+router.get('/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).send('Erreur de déconnexion.');
+    }
+
+    res.clearCookie('bat_identity');
+    res.redirect('/auth/login');
+  });
+});
+
 router.post('/register', async (req, res) => {
   let { username, password } = req.body;
 
